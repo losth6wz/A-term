@@ -47,6 +47,8 @@ A-term is a fully custom terminal emulator built from scratch in Python. It has 
 | `aterm themes` | List all themes with colour swatches |
 | `aterm config` | Show config path, create defaults if missing |
 | `aterm config reset` | Reset config to defaults |
+| `aterm fetch` | Neofetch-style system info |
+| `aterm fetch --image <path>` | Render image + system info |
 | `aterm reload` | Re-launch shell to pick up config changes |
 | `aterm version` | Show version |
 

@@ -22,6 +22,7 @@ width = 960\n\
 height = 640\n\
 opacity = 1.0\n\
 padding = 6\n\
+icon =\n\
 \n\
 [font]\n\
 family = Consolas\n\
@@ -149,6 +150,7 @@ _DEFAULTS: Dict[str, str] = {
     "window.height":  "640",
     "window.opacity": "1.0",
     "window.padding": "4",
+    "window.icon":    "",
     # [font]
     "font.family": "Consolas",
     "font.size":   "11",
@@ -296,6 +298,10 @@ class Config:
     @property
     def padding(self) -> int:
         return max(0, self._int("window", "padding"))
+
+    @property
+    def window_icon(self) -> str:
+        return self._str("window", "icon", "")
 
     # ------------------------------------------------------------------
     # [font]

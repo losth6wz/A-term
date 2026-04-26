@@ -1,6 +1,8 @@
 """A-term – a minimal terminal emulator built with PySide6 + pywinpty."""
 
+import os
 import sys
+from pathlib import Path
 
 
 def _is_shell_mode(argv: list[str]) -> bool:
@@ -20,6 +22,35 @@ from PySide6.QtGui import QIcon
 from config import CFG
 from terminal_view import TerminalView
 from wt_profile import ensure_windows_terminal_profile
+
+
+def _resolve_icon_path() -> Path | None:
+    """Find an icon path from config or known default locations."""
+    candidates: list[Path] = []
+
+    if CFG.window_icon:
+        candidates.append(Path(CFG.window_icon).expanduser())
+
+    appdata = Path(os.environ.get("APPDATA", "")).expanduser() / "A-term"
+
+    base = Path(__file__).resolve().parent
+    candidates.extend(
+        [
+            base / "assets" / "icon.ico",
+            base / "assets" / "icon.png",
+            base / "icon.ico",
+            base / "icon.png",
+            appdata / "icon.ico",
+            appdata / "icon.png",
+            appdata / "icon.jpg",
+            appdata / "icon.jpeg",
+        ]
+    )
+
+    for c in candidates:
+        if c.exists() and c.is_file():
+            return c
+    return None
 
 
 class MainWindow(QMainWindow):
@@ -54,7 +85,17 @@ def main() -> None:
     app.setApplicationName(CFG.window_title)
     app.setStyle("Fusion")
 
+    icon_path = _resolve_icon_path()
+    if icon_path is not None:
+        icon = QIcon(str(icon_path))
+        if not icon.isNull():
+            app.setWindowIcon(icon)
+
     win = MainWindow()
+    if icon_path is not None:
+        icon = QIcon(str(icon_path))
+        if not icon.isNull():
+            win.setWindowIcon(icon)
     win.show()
 
     sys.exit(app.exec())

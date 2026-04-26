@@ -5,6 +5,8 @@ Subcommands
     aterm theme              interactive Vim-style picker (j/k, gg, G, Enter)
   aterm theme <name>       apply a named preset theme directly
   aterm themes             list all available preset themes with swatches
+    aterm fetch              neofetch-style system summary
+    aterm fetch --image <p>  render an image instead of ASCII logo
   aterm reload             re-exec the shell to pick up new config
   aterm version            print A-term version
   aterm help               print this message
@@ -13,14 +15,20 @@ Subcommands
 from __future__ import annotations
 
 import os
+import platform
 import re
 import sys
+from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 import plugins as _plugins
+from config import CFG, CONF_PATH, ensure_conf_file
 
-from config import CONF_PATH, ensure_conf_file
+try:
+    from PIL import Image
+except Exception:
+    Image = None
 
 _CONF_PATH = Path(CONF_PATH)
 _VERSION   = "0.1.0"
@@ -60,6 +68,149 @@ def _swatch(colors: List[str], n: int = 16) -> str:
 def _ansi_len(s: str) -> int:
     """Visible character length of a string that may contain ANSI escapes."""
     return len(re.sub(r"\x1b\[[^m]*m", "", s))
+
+
+# ── fetch ────────────────────────────────────────────────────────────────────
+
+_FETCH_LOGO: List[str] = [
+    f"{_fg(255, 120, 180)}        /\\{RST}",
+    f"{_fg(255, 120, 180)}   /\\  /  \\{RST}",
+    f"{_fg(255, 145, 198)}  /  \\/ /\\ \\{RST}",
+    f"{_fg(255, 170, 214)} / /\\  /__\\ \\{RST}",
+    f"{_fg(255, 190, 228)}/_/  \\/    \\_\\{RST}",
+    f"{_fg(255, 205, 238)}   A-term console{RST}",
+]
+
+
+def _uptime_text() -> str:
+    try:
+        import ctypes
+
+        ms = int(ctypes.windll.kernel32.GetTickCount64())
+        secs = max(0, ms // 1000)
+    except Exception:
+        return "unknown"
+
+    days, rem = divmod(secs, 86400)
+    hours, rem = divmod(rem, 3600)
+    mins, _ = divmod(rem, 60)
+    parts: List[str] = []
+    if days:
+        parts.append(f"{days}d")
+    if hours:
+        parts.append(f"{hours}h")
+    if mins or not parts:
+        parts.append(f"{mins}m")
+    return " ".join(parts)
+
+
+def _fetch_info_lines() -> List[str]:
+    theme = f"FG {CFG.fg} / BG {CFG.bg}"
+    return [
+        f"{BOLD}{_fg(255, 170, 214)}{os.environ.get('USERNAME', 'user')}@{platform.node()}{RST}",
+        f"{DIM}{'-' * 34}{RST}",
+        f"{BOLD}OS{RST}: {platform.system()} {platform.release()}",
+        f"{BOLD}Kernel{RST}: {platform.version()}",
+        f"{BOLD}Python{RST}: {platform.python_version()}",
+        f"{BOLD}A-term{RST}: {_VERSION}",
+        f"{BOLD}Uptime{RST}: {_uptime_text()}",
+        f"{BOLD}Shell{RST}: A-term custom shell",
+        f"{BOLD}Theme{RST}: {theme}",
+        f"{BOLD}Plugins{RST}: {len(_plugins.loaded())} loaded",
+        f"{BOLD}Config{RST}: {CONF_PATH}",
+        f"{BOLD}Time{RST}: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
+        "",
+        _swatch([CFG.ansi_color_hex(i) for i in range(16)], n=16),
+    ]
+
+
+def _image_to_ansi_lines(path: Path, width: int) -> List[str]:
+    if Image is None:
+        raise RuntimeError("Image rendering requires Pillow. Install it with: pip install pillow")
+
+    width = max(8, min(120, width))
+    with Image.open(path) as img:
+        img = img.convert("RGB")
+        h = max(2, int((img.height / max(1, img.width)) * width * 2))
+        if h % 2:
+            h += 1
+        img = img.resize((width, h))
+        px = img.load()
+
+        lines: List[str] = []
+        for y in range(0, h, 2):
+            row: List[str] = []
+            for x in range(width):
+                r1, g1, b1 = px[x, y]
+                r2, g2, b2 = px[x, y + 1]
+                row.append(f"\x1b[38;2;{r1};{g1};{b1}m\x1b[48;2;{r2};{g2};{b2}m▀")
+            row.append(RST)
+            lines.append("".join(row))
+    return lines
+
+
+def _print_two_columns(left: List[str], right: List[str], left_width: int = 38) -> None:
+    rows = max(len(left), len(right))
+    for i in range(rows):
+        l = left[i] if i < len(left) else ""
+        r = right[i] if i < len(right) else ""
+        pad = max(1, left_width - _ansi_len(l))
+        print(f"{l}{' ' * pad}{r}")
+
+
+def _run_fetch(args: List[str]) -> int:
+    image_path: Optional[Path] = None
+    width = 34
+
+    i = 0
+    while i < len(args):
+        a = args[i]
+        if a in ("--image", "-i"):
+            if i + 1 >= len(args):
+                print("Usage: aterm fetch [--image <path>] [--width <n>]")
+                return 1
+            image_path = Path(args[i + 1]).expanduser()
+            i += 2
+            continue
+        if a in ("--width", "-w"):
+            if i + 1 >= len(args):
+                print("Usage: aterm fetch [--image <path>] [--width <n>]")
+                return 1
+            try:
+                width = int(args[i + 1])
+            except ValueError:
+                print(f"Invalid width '{args[i + 1]}'.")
+                return 1
+            i += 2
+            continue
+        if a in ("--help", "-h"):
+            print("Usage: aterm fetch [--image <path>] [--width <n>]")
+            return 0
+
+        # Convenience: bare positional path means image path.
+        if image_path is None:
+            image_path = Path(a).expanduser()
+            i += 1
+            continue
+
+        print(f"Unknown argument '{a}'.")
+        print("Usage: aterm fetch [--image <path>] [--width <n>]")
+        return 1
+
+    left = _FETCH_LOGO
+    if image_path is not None:
+        if not image_path.exists() or not image_path.is_file():
+            print(f"Image not found: {image_path}")
+            return 1
+        try:
+            left = _image_to_ansi_lines(image_path, width)
+        except Exception as exc:
+            print(f"Image render failed: {exc}")
+            return 1
+
+    right = _fetch_info_lines()
+    _print_two_columns(left, right, left_width=max(38, width + 2))
+    return 0
 
 
 # ── theme parsing ─────────────────────────────────────────────────────────────
@@ -464,6 +615,8 @@ _HELP = f"""\
   aterm plugin list        list loaded plugins and their commands
   aterm plugin dir         open the plugins directory in Explorer
   aterm plugin new <name>  scaffold a new plugin file
+    aterm fetch              neofetch-style system summary
+    aterm fetch --image <p>  render an image instead of ASCII logo
   aterm reload             re-exec the shell (picks up new aterm.conf)
   aterm version            print A-term version
   aterm help               show this message
@@ -513,6 +666,9 @@ def run(args: List[str]) -> int:
 
     if sub == "plugin":
         return _run_plugin(args[1:])
+
+    if sub == "fetch":
+        return _run_fetch(args[1:])
 
     if sub in ("help", "--help", "-h"):
         print(_HELP)

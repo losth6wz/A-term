@@ -12,6 +12,7 @@ import shutil
 import socket
 import subprocess
 import sys
+from typing import Any
 
 import aterm_cmd as _aterm_cmd_mod
 import plugins as _plugins
@@ -104,6 +105,46 @@ def _prompt() -> str:
 
 _history: list[str] = []
 _ALIASES: dict[str, str] = {}
+
+
+class _NullWriter:
+    """Writable stream fallback used when no real stdout/stderr exists."""
+
+    def write(self, _text: str) -> int:
+        return 0
+
+    def flush(self) -> None:
+        return
+
+
+class _NullReader:
+    """Readable stream fallback used when no real stdin exists."""
+
+    def readline(self) -> str:
+        return ""
+
+
+def _prepare_output_stream(stream: Any, fd: int) -> Any:
+    """Return a line-buffered text stream, even in windowed/frozen builds."""
+    if stream is not None:
+        try:
+            return os.fdopen(os.dup(stream.fileno()), "w", buffering=1, encoding="utf-8", errors="replace")
+        except Exception:
+            return stream
+    try:
+        return os.fdopen(os.dup(fd), "w", buffering=1, encoding="utf-8", errors="replace")
+    except Exception:
+        return _NullWriter()
+
+
+def _prepare_input_stream(stream: Any) -> Any:
+    """Return a valid readable stream; fallback to fd 0 then a null reader."""
+    if stream is not None:
+        return stream
+    try:
+        return os.fdopen(os.dup(0), "r", buffering=1, encoding="utf-8", errors="replace")
+    except Exception:
+        return _NullReader()
 
 
 def _builtin_cd(args: list[str]) -> None:
@@ -345,8 +386,15 @@ def _run_external(parts: list[str]) -> int:
 # ---------------------------------------------------------------------------
 
 def _err(msg: str) -> None:
-    sys.stderr.write(f"\x1b[1;31m{msg}\x1b[0m\n")
-    sys.stderr.flush()
+    text = f"\x1b[1;31m{msg}\x1b[0m\n"
+    stream = getattr(sys, "stderr", None) or getattr(sys, "stdout", None)
+    if stream is None:
+        return
+    try:
+        stream.write(text)
+        stream.flush()
+    except Exception:
+        return
 
 
 def _parse(line: str) -> list[str]:
@@ -405,11 +453,10 @@ def _read_var(line: str, i: int):
 def main() -> None:
     global _last_status
 
-    # Make stdout/stderr line-buffered (stdout/stderr may be None in --windowed builds)
-    if sys.stdout is not None:
-        sys.stdout = os.fdopen(sys.stdout.fileno(), "w", buffering=1, errors="replace")
-    if sys.stderr is not None:
-        sys.stderr = os.fdopen(sys.stderr.fileno(), "w", buffering=1, errors="replace")
+    # Make stdio robust in --windowed/frozen builds where streams may be None.
+    sys.stdin = _prepare_input_stream(sys.stdin)
+    sys.stdout = _prepare_output_stream(sys.stdout, 1)
+    sys.stderr = _prepare_output_stream(sys.stderr, 2)
 
     # Apply extra environment variables from config
     for k, v in CFG.extra_env().items():
