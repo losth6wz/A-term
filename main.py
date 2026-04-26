@@ -19,6 +19,7 @@ from PySide6.QtGui import QIcon
 
 from config import CFG
 from terminal_view import TerminalView
+from wt_profile import ensure_windows_terminal_profile
 
 
 class MainWindow(QMainWindow):
@@ -43,6 +44,12 @@ class MainWindow(QMainWindow):
 
 
 def main() -> None:
+    # Ensure Windows Terminal can discover A-term via profile fragments.
+    try:
+        ensure_windows_terminal_profile()
+    except Exception:
+        pass
+
     app = QApplication(sys.argv)
     app.setApplicationName(CFG.window_title)
     app.setStyle("Fusion")

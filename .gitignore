@@ -12,6 +12,8 @@ __pycache__/
 build/
 dist/
 dist-installer/
+.wix/
+*.msi
 *.spec
 
 # IDE

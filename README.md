@@ -1,85 +1,95 @@
 # A-term
 
-A custom terminal emulator for Windows built with Python, PySide6, and pywinpty.
+A custom terminal application for Windows with its own UI, shell, and ANSI pipeline.
 
-## Features
+## Why A-term
 
-- Custom terminal UI (not cmd.exe or powershell UI)
-- Built-in custom shell
-- ANSI / VT100 parsing
-- Config-driven behavior via aterm.conf
-- Vim-style theme picker: `aterm theme`
-- Theme list and direct apply: `aterm themes`, `aterm theme <name>`
-- Config bootstrap command: `aterm config`
-- Config reset command: `aterm config reset`
-- PyInstaller packaging support
-- Inno Setup installer script included
+- Not a themed wrapper over cmd.exe or powershell UI
+- Custom renderer and input handling in PySide6
+- Custom shell process with A-term-specific commands
+- Fast theme switching and deep config control
 
-## Project Structure
+## Highlights
 
-- main.py: GUI app entrypoint
-- shell.py: custom shell process
-- terminal_view.py: rendering and input
-- terminal_buffer.py: screen buffer + scrollback
-- ansi_parser.py: ANSI/VT parser
-- pty_backend.py: pywinpty wrapper
-- config.py: config loading + defaults
-- aterm.conf: editable defaults template
-- aterm_cmd.py: built-in `aterm` command
-- installer/A-term.iss: Inno Setup installer recipe
-- build_installer.ps1: one-command build script for exe + installer
+- VT100 / ANSI parser
+- Scrollback buffer with style attributes
+- Vim-style theme selector via `aterm theme`
+- Config bootstrap and reset via `aterm config` and `aterm config reset`
+- Automatic Windows Terminal profile fragment registration on launch
+- MSI packaging workflow (WiX Toolset)
 
-## Run From Source
+## Quick Start (Source)
 
-1. Create and activate a virtual environment
-2. Install dependencies
-3. Launch app
+```powershell
+.venv\Scripts\python.exe -m pip install PySide6 pywinpty
+.venv\Scripts\python.exe main.py
+```
 
-Windows example:
+## Config Location and Behavior
 
-- .venv\Scripts\python.exe -m pip install PySide6 pywinpty
-- .venv\Scripts\python.exe main.py
+Runtime config path priority:
 
-## Config File Location
+1. `ATERM_CONF`
+2. `%APPDATA%\\A-term\\aterm.conf`
+3. local `aterm.conf` (dev fallback)
 
-At runtime, config is resolved in this order:
+Notes:
 
-1. ATERM_CONF environment variable path
-2. %APPDATA%\A-term\aterm.conf
-3. Local project aterm.conf (development fallback)
+- `aterm config` creates a default config if missing
+- `aterm config reset` rewrites defaults
 
-Use `aterm config` to create default config if missing.
+## Build EXE + MSI
 
-## Build EXE
+Prerequisites for building installer artifacts:
 
-- .venv\Scripts\python.exe -m pip install pyinstaller
-- .venv\Scripts\python.exe -m PyInstaller --noconfirm --windowed --name A-term main.py
+- Python virtual environment (`.venv`)
+- .NET SDK (for WiX CLI)
 
-Output:
+Build command:
 
-- dist\A-term\A-term.exe
+```powershell
+powershell -ExecutionPolicy Bypass -File .\build_msi.ps1
+```
 
-## Build Installer
+Outputs:
 
-Prerequisite: Inno Setup 6 installed.
+- `dist\A-term\A-term.exe`
+- `dist-installer\A-term-Setup.msi`
 
-Run:
+## For Nerds
 
-- powershell -ExecutionPolicy Bypass -File .\build_installer.ps1
+### Architecture
 
-Installer output:
+- `main.py`: GUI startup, window creation, shell mode entrypoint
+- `terminal_view.py`: terminal widget, painting, keyboard/mouse behavior
+- `terminal_buffer.py`: screen model, attributes, cursor, scrollback
+- `ansi_parser.py`: CSI/OSC/SGR parser and state machine
+- `pty_backend.py`: pywinpty wrapper and reader thread
+- `shell.py`: custom command dispatcher and built-ins
+- `aterm_cmd.py`: `aterm` meta-command (`theme`, `themes`, `config`, etc.)
+- `config.py`: typed INI access + defaults + config bootstrap
+- `wt_profile.py`: Windows Terminal profile fragment writer
 
-- dist-installer\A-term-Setup.exe
+### ANSI / VT Notes
 
-## Windows Terminal Profile
+- Supports SGR color/attributes including 256-color and truecolor modes
+- Handles cursor movement, erase operations, insert/delete chars/lines
+- Supports title changes via OSC and alternate screen modes
+- Palette can be replaced at runtime from config theme values
 
-Add a profile in Windows Terminal settings JSON that points to your built exe.
+### Render / Data Flow
 
-Example commandline:
+1. PTY emits output from shell process
+2. Parser converts byte stream into terminal operations
+3. Buffer applies operations and stores styled cells
+4. View paints visible rows and cursor
 
-- C:\Users\PC\A-term\dist\A-term\A-term.exe
+## Repository Layout
+
+- `installer/A-term.wxs`: WiX source for MSI package
+- `build_msi.ps1`: one-command EXE + MSI build script
 
 ## License
 
-No license file has been added yet.
-If you want this repo to be open-source, add a LICENSE file (MIT is a common choice).
+No license file is included yet.
+If you want open-source distribution, add a `LICENSE` file (MIT is a common choice).
