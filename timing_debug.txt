@@ -1,7 +1,0 @@
-1777241788.413: subprocess started
-1777241788.416: argv=['C:/Users/PC/A-term/timing_test.py']
-1777241788.418: importing aterm_cmd
-1777241788.594: importing plugins
-1777241788.595: importing config
-1777241788.595: config loaded, banner=True
-1777241788.598: calling shell.main
