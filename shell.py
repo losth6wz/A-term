@@ -399,9 +399,11 @@ def _read_var(line: str, i: int):
 def main() -> None:
     global _last_status
 
-    # Make stdout/stderr line-buffered
-    sys.stdout = os.fdopen(sys.stdout.fileno(), "w", buffering=1, errors="replace")
-    sys.stderr = os.fdopen(sys.stderr.fileno(), "w", buffering=1, errors="replace")
+    # Make stdout/stderr line-buffered (stdout/stderr may be None in --windowed builds)
+    if sys.stdout is not None:
+        sys.stdout = os.fdopen(sys.stdout.fileno(), "w", buffering=1, errors="replace")
+    if sys.stderr is not None:
+        sys.stderr = os.fdopen(sys.stderr.fileno(), "w", buffering=1, errors="replace")
 
     # Apply extra environment variables from config
     for k, v in CFG.extra_env().items():
