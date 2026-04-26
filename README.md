@@ -75,6 +75,48 @@ Includes: Gruvbox Dark · Solarized Dark · Nord · Tokyo Night · Dracula · Ca
 
 ---
 
+## ▸ Plugins
+
+Plugins let you add new shell commands without rebuilding or touching the source.
+
+**Plugin directory:** `%APPDATA%\A-term\plugins\`
+
+Drop any `.py` file there and it is loaded automatically on next shell start. No build step. No restart of the app required beyond `aterm reload`.
+
+| Command | Description |
+|---|---|
+| `aterm plugin list` | Show all loaded plugins and their commands |
+| `aterm plugin dir` | Print (and open) the plugins directory |
+| `aterm plugin new <name>` | Scaffold a new plugin with a template |
+
+**Minimal example** (`%APPDATA%\A-term\plugins\hello.py`):
+
+```python
+def _hello(args):
+    print("Hello,", args[0] if args else "world!")
+
+COMMANDS = {"hello": _hello}
+```
+
+After saving, run `aterm reload` — then `hello` is a real shell command.
+
+**Full plugin interface:**
+
+```python
+# on_startup is optional — called once when the shell loads the plugin
+def on_startup(ctx):
+    ctx.builtins["my_cmd"] = my_cmd   # register commands programmatically
+    ctx.aliases["alias"]   = "my_cmd" # register aliases
+    ctx.env["MY_VAR"]      = "value"  # set environment variables
+
+def my_cmd(args: list[str]) -> None:
+    ...
+
+COMMANDS = {"my_cmd": my_cmd}
+```
+
+---
+
 ## ▸ Running from Source
 
 ```powershell
