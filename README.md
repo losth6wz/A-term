@@ -1,95 +1,150 @@
-# A-term
+<div align="center">
 
-A custom terminal application for Windows with its own UI, shell, and ANSI pipeline.
+```
+    _        _                     
+   / \      | |_ ___ _ __ _ __ ___ 
+  / _ \ ____| __/ _ \ '__| '_ ` _ \
+ / ___ \_____| ||  __/ |  | | | | | |
+/_/   \_\     \__\___|_|  |_| |_| |_|
+```
 
-## Why A-term
+**A custom terminal for Windows. No cmd.exe. No PowerShell UI. Just yours.**
 
-- Not a themed wrapper over cmd.exe or powershell UI
-- Custom renderer and input handling in PySide6
-- Custom shell process with A-term-specific commands
-- Fast theme switching and deep config control
+[![Release](https://img.shields.io/github/v/release/losth6wz/A-term?color=%23CC88FF&label=latest&style=flat-square)](https://github.com/losth6wz/A-term/releases/latest)
+[![Platform](https://img.shields.io/badge/platform-Windows-5599FF?style=flat-square)](https://github.com/losth6wz/A-term)
+[![Python](https://img.shields.io/badge/python-3.10%2B-55FF88?style=flat-square)](https://python.org)
+[![License](https://img.shields.io/badge/license-none%20yet-555555?style=flat-square)](#license)
 
-## Highlights
+</div>
 
-- VT100 / ANSI parser
-- Scrollback buffer with style attributes
-- Vim-style theme selector via `aterm theme`
-- Config bootstrap and reset via `aterm config` and `aterm config reset`
-- Automatic Windows Terminal profile fragment registration on launch
-- MSI packaging workflow (WiX Toolset)
+---
 
-## Quick Start (Source)
+## ▸ What is A-term?
+
+A-term is a fully custom terminal emulator built from scratch in Python. It has its own renderer, its own shell, its own config system, and its own command set. It does not wrap `cmd.exe` or the PowerShell UI — it runs an entirely separate process with its own ANSI/VT pipeline.
+
+---
+
+## ▸ Install
+
+**Download the MSI → double-click → done.**
+
+> [`A-term-Setup.msi` → latest release](https://github.com/losth6wz/A-term/releases/latest)
+
+- Installs `A-term.exe` to `Program Files\A-term`
+- No Python required on the target machine
+- On first launch, A-term registers itself in **Windows Terminal's profile dropdown** automatically
+- Config file is created at `%APPDATA%\A-term\aterm.conf` on first run
+
+---
+
+## ▸ Built-in Commands
+
+| Command | Description |
+|---|---|
+| `aterm theme` | Vim-style interactive theme picker |
+| `aterm theme <name>` | Apply a preset theme directly |
+| `aterm themes` | List all themes with colour swatches |
+| `aterm config` | Show config path, create defaults if missing |
+| `aterm config reset` | Reset config to defaults |
+| `aterm reload` | Re-launch shell to pick up config changes |
+| `aterm version` | Show version |
+
+---
+
+## ▸ Config
+
+Config lives at `%APPDATA%\A-term\aterm.conf` after install.  
+Edit it with any text editor to change fonts, colours, keybindings, prompt, and more.
+
+**Override location:**
+```powershell
+$env:ATERM_CONF = "C:\path\to\my.conf"
+```
+
+**Reset to defaults:**
+```
+aterm config reset
+```
+
+**Preset themes** (apply from inside the terminal):
+```
+aterm theme
+```
+Includes: Gruvbox Dark · Solarized Dark · Nord · Tokyo Night · Dracula · Catppuccin Mocha
+
+---
+
+## ▸ Running from Source
 
 ```powershell
+git clone https://github.com/losth6wz/A-term
+cd A-term
+python -m venv .venv
 .venv\Scripts\python.exe -m pip install PySide6 pywinpty
 .venv\Scripts\python.exe main.py
 ```
 
-## Config Location and Behavior
+---
 
-Runtime config path priority:
+## ▸ Building the Installer
 
-1. `ATERM_CONF`
-2. `%APPDATA%\\A-term\\aterm.conf`
-3. local `aterm.conf` (dev fallback)
-
-Notes:
-
-- `aterm config` creates a default config if missing
-- `aterm config reset` rewrites defaults
-
-## Build EXE + MSI
-
-Prerequisites for building installer artifacts:
-
-- Python virtual environment (`.venv`)
-- .NET SDK (for WiX CLI)
-
-Build command:
+Requirements: `.venv` with pip, `.NET SDK 8+` (auto-installed on first run of script)
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\build_msi.ps1
 ```
 
-Outputs:
+Outputs `dist-installer\A-term-Setup.msi` — ready to ship.
 
-- `dist\A-term\A-term.exe`
-- `dist-installer\A-term-Setup.msi`
+---
 
-## For Nerds
+<details>
+<summary><b>▸ For Nerds — Internals & Architecture</b></summary>
 
-### Architecture
+### Module Map
 
-- `main.py`: GUI startup, window creation, shell mode entrypoint
-- `terminal_view.py`: terminal widget, painting, keyboard/mouse behavior
-- `terminal_buffer.py`: screen model, attributes, cursor, scrollback
-- `ansi_parser.py`: CSI/OSC/SGR parser and state machine
-- `pty_backend.py`: pywinpty wrapper and reader thread
-- `shell.py`: custom command dispatcher and built-ins
-- `aterm_cmd.py`: `aterm` meta-command (`theme`, `themes`, `config`, etc.)
-- `config.py`: typed INI access + defaults + config bootstrap
-- `wt_profile.py`: Windows Terminal profile fragment writer
+| File | Role |
+|---|---|
+| `main.py` | GUI entry point, window setup, shell mode flag |
+| `terminal_view.py` | QWidget renderer, input handling, font/cursor logic |
+| `terminal_buffer.py` | Screen model — 2D cell grid, scrollback, attributes |
+| `ansi_parser.py` | Stateful VT100/ANSI parser — CSI, OSC, SGR, DEC |
+| `pty_backend.py` | pywinpty wrapper, background reader thread |
+| `shell.py` | Custom interactive shell, built-ins, alias expansion |
+| `aterm_cmd.py` | `aterm` meta-command dispatcher and TUI components |
+| `config.py` | INI config loader, typed accessors, defaults, bootstrap |
+| `wt_profile.py` | Windows Terminal profile fragment writer |
 
-### ANSI / VT Notes
+### ANSI / VT Pipeline
 
-- Supports SGR color/attributes including 256-color and truecolor modes
-- Handles cursor movement, erase operations, insert/delete chars/lines
-- Supports title changes via OSC and alternate screen modes
-- Palette can be replaced at runtime from config theme values
+- SGR: full 16-colour, 256-colour (`38;5;n`), and truecolor (`38;2;r;g;b`) support
+- CSI: cursor movement (A–H, f), erase (J, K), insert/delete chars/lines (L, M, P, @)
+- DEC private: `?25h/l` cursor visibility, `?1049h/l` alternate screen
+- OSC: title changes via `0` and `2`
+- Palette overridable at runtime from `aterm.conf` theme values
 
-### Render / Data Flow
+### Render Loop
 
-1. PTY emits output from shell process
-2. Parser converts byte stream into terminal operations
-3. Buffer applies operations and stores styled cells
-4. View paints visible rows and cursor
+```
+PTY output
+    └─► AnsiParser.feed()
+            └─► TerminalBuffer ops (put_char, cursor_*, erase_*, scroll_*)
+                    └─► TerminalView.paintEvent() → QPainter → screen
+```
 
-## Repository Layout
+### Config Resolution Order
 
-- `installer/A-term.wxs`: WiX source for MSI package
-- `build_msi.ps1`: one-command EXE + MSI build script
+```
+ATERM_CONF env var
+    └─► %APPDATA%\A-term\aterm.conf
+            └─► local aterm.conf  (dev fallback)
+```
 
-## License
+</details>
 
-No license file is included yet.
-If you want open-source distribution, add a `LICENSE` file (MIT is a common choice).
+---
+
+## ▸ License
+
+No license has been added yet. Contributions and forks welcome — add a `LICENSE` file if you redistribute.
