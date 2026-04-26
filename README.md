@@ -87,18 +87,6 @@ python -m venv .venv
 
 ---
 
-## ▸ Building the Installer
-
-Requirements: `.venv` with pip, `.NET SDK 8+` (auto-installed on first run of script)
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\build_msi.ps1
-```
-
-Outputs `dist-installer\A-term-Setup.msi` — ready to ship.
-
----
-
 <details>
 <summary><b>▸ For Nerds — Internals & Architecture</b></summary>
 
