@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
-     xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui">
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
 
   <Package Name="A-term"
            Manufacturer="A-term"
@@ -11,11 +10,8 @@
     <MajorUpgrade DowngradeErrorMessage="A newer version of A-term is already installed." />
     <MediaTemplate />
 
-    <ui:WixUI Id="WixUI_InstallDir" />
-    <Property Id="WIXUI_INSTALLDIR" Value="INSTALLFOLDER" />
-
     <Feature Id="MainFeature" Title="A-term" Level="1">
-      <ComponentGroupRef Id="AppFiles" />
+      <ComponentRef Id="MainExecutable" />
       <ComponentRef Id="StartMenuShortcut" />
       <ComponentRef Id="DesktopShortcut" />
     </Feature>
@@ -34,9 +30,12 @@
   </Fragment>
 
   <Fragment>
-    <ComponentGroup Id="AppFiles" Directory="INSTALLFOLDER">
-      <Files Include="$(var.AppSourceDir)\**" />
-    </ComponentGroup>
+    <DirectoryRef Id="INSTALLFOLDER">
+      <Component Id="MainExecutable" Guid="7B7AFA54-0A51-4D9D-98FE-8E0CA283EA20">
+        <File Id="AtermExe" Source="$(var.ExeSource)" KeyPath="yes" />
+        <File Id="AtermConf" Source="$(var.ConfSource)" />
+      </Component>
+    </DirectoryRef>
   </Fragment>
 
   <Fragment>

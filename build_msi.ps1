@@ -11,8 +11,8 @@ if (-not (Test-Path $py)) {
 Write-Host "[1/4] Installing/updating Python build tools..."
 & $py -m pip install --upgrade pip pyinstaller | Out-Host
 
-Write-Host "[2/4] Building A-term executable (one-folder)..."
-& $py -m PyInstaller --noconfirm --windowed --name A-term --add-data "aterm.conf;." main.py | Out-Host
+Write-Host "[2/4] Building A-term executable (one-file)..."
+& $py -m PyInstaller --noconfirm --onefile --windowed --name A-term main.py | Out-Host
 
 Write-Host "[3/4] Installing/updating WiX CLI (dotnet tool)..."
 $dotnetTools = Join-Path $env:USERPROFILE '.dotnet\tools'
@@ -26,13 +26,14 @@ Write-Host "[4/4] Building MSI..."
 New-Item -ItemType Directory -Force -Path (Join-Path $root 'dist-installer') | Out-Null
 
 $wxsPath = Join-Path $root 'installer\A-term.wxs'
-$appSourceDir = Join-Path $root 'dist\A-term'
+$exeSource = Join-Path $root 'dist\A-term.exe'
+$confSource = Join-Path $root 'aterm.conf'
 $msiOut = Join-Path $root 'dist-installer\A-term-Setup.msi'
 
 & wix build `
   $wxsPath `
-  -ext WixToolset.UI.wixext `
-  -d "AppSourceDir=$appSourceDir" `
+  -d "ExeSource=$exeSource" `
+  -d "ConfSource=$confSource" `
   -o $msiOut | Out-Host
 
 Write-Host "Done. MSI output: dist-installer\A-term-Setup.msi"
