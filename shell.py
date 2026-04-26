@@ -131,6 +131,14 @@ def _prepare_output_stream(stream: Any, fd: int) -> Any:
             return os.fdopen(os.dup(stream.fileno()), "w", buffering=1, encoding="utf-8", errors="replace")
         except Exception:
             return stream
+
+    fallback_std = sys.__stdout__ if fd == 1 else sys.__stderr__
+    if fallback_std is not None:
+        try:
+            return os.fdopen(os.dup(fallback_std.fileno()), "w", buffering=1, encoding="utf-8", errors="replace")
+        except Exception:
+            return fallback_std
+
     try:
         return os.fdopen(os.dup(fd), "w", buffering=1, encoding="utf-8", errors="replace")
     except Exception:
@@ -141,6 +149,13 @@ def _prepare_input_stream(stream: Any) -> Any:
     """Return a valid readable stream; fallback to fd 0 then a null reader."""
     if stream is not None:
         return stream
+
+    if sys.__stdin__ is not None:
+        try:
+            return os.fdopen(os.dup(sys.__stdin__.fileno()), "r", buffering=1, encoding="utf-8", errors="replace")
+        except Exception:
+            return sys.__stdin__
+
     try:
         return os.fdopen(os.dup(0), "r", buffering=1, encoding="utf-8", errors="replace")
     except Exception:

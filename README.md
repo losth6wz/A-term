@@ -75,6 +75,16 @@ aterm theme
 ```
 Includes: Gruvbox Dark · Solarized Dark · Nord · Tokyo Night · Dracula · Catppuccin Mocha
 
+**Fetch defaults** can be configured in a new `[fetch]` section:
+```ini
+[fetch]
+default_image = C:\Users\PC\Pictures\myfetch.png
+image_width = 34
+show_time = true
+show_plugins = true
+logo_style = classic
+```
+
 ---
 
 ## ▸ Plugins

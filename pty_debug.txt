@@ -1,0 +1,3 @@
+started
+stdin_none=False
+argv=['C:\\Users\\PC\\A-term\\pty_test_stdin.py']

@@ -73,6 +73,13 @@ show_git = true\n\
 git_dirty_symbol = *\n\
 separator =\n\
 \n\
+[fetch]\n\
+default_image =\n\
+image_width = 34\n\
+show_time = true\n\
+show_plugins = true\n\
+logo_style = classic\n\
+\n\
 [aliases]\n\
 ll = ls\n\
 la = ls\n\
@@ -115,6 +122,41 @@ def _resolve_conf_path() -> str:
 CONF_PATH = _resolve_conf_path()
 
 
+def _parse_default_sections() -> dict[str, dict[str, str]]:
+    cp = configparser.ConfigParser(interpolation=None, allow_no_value=True)
+    cp.read_string(_FALLBACK_CONF_TEXT)
+    sections: dict[str, dict[str, str]] = {}
+    for section in cp.sections():
+        sections[section] = {key: (value or "") for key, value in cp.items(section)}
+    return sections
+
+
+def _merge_missing_sections(conf_path: str) -> bool:
+    """Append any newly introduced config sections to an existing config file."""
+    if not os.path.exists(conf_path):
+        return False
+
+    existing = configparser.ConfigParser(interpolation=None, allow_no_value=True)
+    existing.read(conf_path, encoding="utf-8-sig")
+
+    additions: list[str] = []
+    for section, values in _parse_default_sections().items():
+        if existing.has_section(section):
+            continue
+        additions.append("\n# -----------------------------------------------------------------------------\n")
+        additions.append(f"[{section}]\n")
+        additions.append("# -----------------------------------------------------------------------------\n")
+        for key, value in values.items():
+            additions.append(f"{key} = {value}\n")
+
+    if not additions:
+        return False
+
+    with open(conf_path, "a", encoding="utf-8") as f:
+        f.write("".join(additions))
+    return True
+
+
 def ensure_conf_file(force_reset: bool = False) -> tuple[str, bool]:
     """Ensure a config file exists and return (path, created_or_reset)."""
     parent = os.path.dirname(CONF_PATH)
@@ -122,7 +164,8 @@ def ensure_conf_file(force_reset: bool = False) -> tuple[str, bool]:
         os.makedirs(parent, exist_ok=True)
 
     if (not force_reset) and os.path.exists(CONF_PATH):
-        return CONF_PATH, False
+        changed = _merge_missing_sections(CONF_PATH)
+        return CONF_PATH, changed
 
     if os.path.exists(_LOCAL_CONF_PATH):
         shutil.copyfile(_LOCAL_CONF_PATH, CONF_PATH)
@@ -199,6 +242,12 @@ _DEFAULTS: Dict[str, str] = {
     "prompt.show_git":         "true",
     "prompt.git_dirty_symbol": "*",
     "prompt.separator":        "",
+    # [fetch]
+    "fetch.default_image":     "",
+    "fetch.image_width":       "34",
+    "fetch.show_time":         "true",
+    "fetch.show_plugins":      "true",
+    "fetch.logo_style":        "classic",
     # [keybindings]
     "keybindings.copy":          "Ctrl+Shift+C",
     "keybindings.paste":         "Ctrl+Shift+V",
@@ -238,7 +287,7 @@ class Config:
         self._cp = configparser.ConfigParser(
             interpolation=None, allow_no_value=True
         )
-        self._cp.read(CONF_PATH, encoding="utf-8")
+        self._cp.read(CONF_PATH, encoding="utf-8-sig")
 
     def reload(self) -> None:
         """Re-read aterm.conf from disk."""
@@ -301,7 +350,10 @@ class Config:
 
     @property
     def window_icon(self) -> str:
-        return self._str("window", "icon", "")
+        raw = self._str("window", "icon", "").strip()
+        if len(raw) >= 2 and raw[0] == raw[-1] and raw[0] in ('"', "'"):
+            return raw[1:-1].strip()
+        return raw
 
     # ------------------------------------------------------------------
     # [font]
@@ -429,6 +481,34 @@ class Config:
     @property
     def prompt_separator(self) -> str:
         return self._str("prompt", "separator", "")
+
+    # ------------------------------------------------------------------
+    # [fetch]
+    # ------------------------------------------------------------------
+
+    @property
+    def fetch_default_image(self) -> str:
+        raw = self._str("fetch", "default_image", "").strip()
+        if len(raw) >= 2 and raw[0] == raw[-1] and raw[0] in ('"', "'"):
+            return raw[1:-1].strip()
+        return raw
+
+    @property
+    def fetch_image_width(self) -> int:
+        return max(8, min(120, self._int("fetch", "image_width")))
+
+    @property
+    def fetch_show_time(self) -> bool:
+        return self._bool("fetch", "show_time")
+
+    @property
+    def fetch_show_plugins(self) -> bool:
+        return self._bool("fetch", "show_plugins")
+
+    @property
+    def fetch_logo_style(self) -> str:
+        style = self._str("fetch", "logo_style", "classic").lower()
+        return style if style in ("classic", "minimal") else "classic"
 
     # ------------------------------------------------------------------
     # [aliases]

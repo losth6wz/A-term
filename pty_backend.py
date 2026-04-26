@@ -66,6 +66,14 @@ class PtyBackend:
         )
         self._thread.start()
 
+    # Winpty sends these sequences during ConPTY initialisation.
+    # We don't support Win32 input mode or focus events, so disable them
+    # immediately to ensure normal raw-character keyboard input works.
+    _WINPTY_DISABLE: dict = {
+        "\x1b[?9001h": "\x1b[?9001l",  # Win32 input mode  → disable
+        "\x1b[?1004h": "\x1b[?1004l",  # Focus-event mode  → disable
+    }
+
     def _read_loop(self) -> None:
         """Background thread: read PTY output and forward to *on_data*."""
         while True:
@@ -77,15 +85,30 @@ class PtyBackend:
                 break
 
             if data:
+                # Auto-disable winpty modes we don't support so that
+                # ordinary raw-character writes reach the shell's stdin.
+                for seq, response in self._WINPTY_DISABLE.items():
+                    if seq in data:
+                        try:
+                            self._proc.write(response)
+                        except Exception:
+                            pass
+
                 if self.on_data:
-                    self.on_data(data)
+                    try:
+                        self.on_data(data)
+                    except Exception:
+                        pass
             else:
                 # Empty read usually means the process has exited
                 if not self._proc.isalive():
                     break
 
         if self.on_exit:
-            self.on_exit()
+            try:
+                self.on_exit()
+            except Exception:
+                pass
 
     # ------------------------------------------------------------------
     # I/O

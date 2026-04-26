@@ -72,7 +72,7 @@ def _ansi_len(s: str) -> int:
 
 # ── fetch ────────────────────────────────────────────────────────────────────
 
-_FETCH_LOGO: List[str] = [
+_FETCH_LOGO_CLASSIC: List[str] = [
     f"{_fg(255, 120, 180)}        /\\{RST}",
     f"{_fg(255, 120, 180)}   /\\  /  \\{RST}",
     f"{_fg(255, 145, 198)}  /  \\/ /\\ \\{RST}",
@@ -80,6 +80,17 @@ _FETCH_LOGO: List[str] = [
     f"{_fg(255, 190, 228)}/_/  \\/    \\_\\{RST}",
     f"{_fg(255, 205, 238)}   A-term console{RST}",
 ]
+
+_FETCH_LOGO_MINIMAL: List[str] = [
+    f"{_fg(255, 120, 180)}   A{RST}",
+    f"{_fg(255, 145, 198)}  /_\\{RST}",
+    f"{_fg(255, 170, 214)} /___\\{RST}",
+    f"{_fg(255, 205, 238)} A-term{RST}",
+]
+
+
+def _fetch_logo(style: str) -> List[str]:
+    return _FETCH_LOGO_MINIMAL if style == "minimal" else _FETCH_LOGO_CLASSIC
 
 
 def _uptime_text() -> str:
@@ -106,7 +117,7 @@ def _uptime_text() -> str:
 
 def _fetch_info_lines() -> List[str]:
     theme = f"FG {CFG.fg} / BG {CFG.bg}"
-    return [
+    lines = [
         f"{BOLD}{_fg(255, 170, 214)}{os.environ.get('USERNAME', 'user')}@{platform.node()}{RST}",
         f"{DIM}{'-' * 34}{RST}",
         f"{BOLD}OS{RST}: {platform.system()} {platform.release()}",
@@ -116,12 +127,19 @@ def _fetch_info_lines() -> List[str]:
         f"{BOLD}Uptime{RST}: {_uptime_text()}",
         f"{BOLD}Shell{RST}: A-term custom shell",
         f"{BOLD}Theme{RST}: {theme}",
-        f"{BOLD}Plugins{RST}: {len(_plugins.loaded())} loaded",
         f"{BOLD}Config{RST}: {CONF_PATH}",
-        f"{BOLD}Time{RST}: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
+    ]
+
+    if CFG.fetch_show_plugins:
+        lines.append(f"{BOLD}Plugins{RST}: {len(_plugins.loaded())} loaded")
+    if CFG.fetch_show_time:
+        lines.append(f"{BOLD}Time{RST}: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+
+    lines.extend([
         "",
         _swatch([CFG.ansi_color_hex(i) for i in range(16)], n=16),
-    ]
+    ])
+    return lines
 
 
 def _image_to_ansi_lines(path: Path, width: int) -> List[str]:
@@ -159,8 +177,8 @@ def _print_two_columns(left: List[str], right: List[str], left_width: int = 38) 
 
 
 def _run_fetch(args: List[str]) -> int:
-    image_path: Optional[Path] = None
-    width = 34
+    image_path: Optional[Path] = Path(CFG.fetch_default_image).expanduser() if CFG.fetch_default_image else None
+    width = CFG.fetch_image_width
 
     i = 0
     while i < len(args):
@@ -197,7 +215,7 @@ def _run_fetch(args: List[str]) -> int:
         print("Usage: aterm fetch [--image <path>] [--width <n>]")
         return 1
 
-    left = _FETCH_LOGO
+    left = _fetch_logo(CFG.fetch_logo_style)
     if image_path is not None:
         if not image_path.exists() or not image_path.is_file():
             print(f"Image not found: {image_path}")

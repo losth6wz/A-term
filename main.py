@@ -47,6 +47,9 @@ def _resolve_icon_path() -> Path | None:
         ]
     )
 
+    if getattr(sys, "frozen", False):
+        candidates.append(Path(sys.executable))
+
     for c in candidates:
         if c.exists() and c.is_file():
             return c
