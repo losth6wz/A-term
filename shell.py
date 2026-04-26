@@ -14,6 +14,7 @@ import subprocess
 import sys
 
 import aterm_cmd as _aterm_cmd_mod
+import plugins as _plugins
 
 from config import CFG
 
@@ -279,7 +280,12 @@ def _builtin_help(_args: list[str]) -> None:
         "  clear / cls       clear screen\n"
         "  help              show this message\n"
         "  exit [code]       exit the shell\n"
-        "\nAny other input is run as an external executable."
+        "\nAny other input is run as an external executable.\n"
+        "\n\x1b[1;35mPlugins\x1b[0m\n"
+        "  Drop a .py file in %APPDATA%\\A-term\\plugins\\\n"
+        "  It is loaded automatically on next shell start.\n"
+        "  Run 'aterm plugin list' to see loaded plugins.\n"
+        "  Run 'aterm plugin new <name>' to scaffold a new one."
     )
 
 
@@ -412,6 +418,9 @@ def main() -> None:
     # Load aliases from config
     global _ALIASES
     _ALIASES = CFG.aliases()
+
+    # Load plugins — must happen before the REPL so user commands are available
+    _plugins.load_plugins(_BUILTINS, _ALIASES)
 
     if CFG.shell_banner:
         print(

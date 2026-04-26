@@ -18,6 +18,8 @@ import sys
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
+import plugins as _plugins
+
 from config import CONF_PATH, ensure_conf_file
 
 _CONF_PATH = Path(CONF_PATH)
@@ -391,6 +393,63 @@ def _run_config(args: List[str]) -> int:
     return 0
 
 
+# ── plugin command ──────────────────────────────────────────────────────────
+
+def _run_plugin(args: List[str]) -> int:
+    if not args or args[0] in ("list", "ls"):
+        items = _plugins.loaded()
+        pdir  = _plugins.plugin_dir()
+        print(f"\n{BOLD}Plugin directory:{RST} {pdir}\n")
+        if not items:
+            print(f"  {DIM}No plugins loaded.{RST}")
+            print(f"  Drop a .py file in the directory above and restart A-term.")
+        else:
+            for p in items:
+                if p["error"]:
+                    tag  = f"\x1b[1;31m✗ {p['error']}{RST}"
+                    cmds = ""
+                else:
+                    tag  = f"\x1b[1;32m✓{RST}"
+                    cmds = f"  → {', '.join(p['commands'])}" if p["commands"] else "  (no commands)"
+                print(f"  {tag}  {BOLD}{p['name']}{RST}{cmds}")
+                print(f"     {DIM}{p['path']}{RST}")
+        print()
+        return 0
+
+    if args[0] == "dir":
+        pdir = _plugins.plugin_dir()
+        pdir.mkdir(parents=True, exist_ok=True)
+        print(str(pdir))
+        # Try to open in Explorer
+        try:
+            import subprocess
+            subprocess.Popen(["explorer", str(pdir)])
+        except Exception:
+            pass
+        return 0
+
+    if args[0] == "new":
+        if len(args) < 2:
+            print("Usage: aterm plugin new <name>")
+            return 1
+        name = args[1]
+        # Sanitise name
+        if not name.replace("_", "").replace("-", "").isalnum():
+            print(f"Invalid plugin name '{name}'. Use letters, digits, underscores.")
+            return 1
+        try:
+            dest = _plugins.scaffold(name)
+            print(f"{_C_SEL}{BOLD}✓{RST} Created plugin scaffold: {dest}")
+            print(f"{DIM}  Edit the file, then run 'aterm reload' to load it.{RST}")
+        except FileExistsError as exc:
+            print(f"\x1b[1;31m{exc}{RST}")
+            return 1
+        return 0
+
+    print(f"Unknown plugin subcommand '{args[0]}'. Try: list, dir, new <name>")
+    return 1
+
+
 # ── help ──────────────────────────────────────────────────────────────────────
 
 _HELP = f"""\
@@ -402,6 +461,9 @@ _HELP = f"""\
   aterm themes             list all preset themes with colour swatches
     aterm config             create default config if missing and print location
     aterm config reset       reset config file to default values
+  aterm plugin list        list loaded plugins and their commands
+  aterm plugin dir         open the plugins directory in Explorer
+  aterm plugin new <name>  scaffold a new plugin file
   aterm reload             re-exec the shell (picks up new aterm.conf)
   aterm version            print A-term version
   aterm help               show this message
@@ -448,6 +510,9 @@ def run(args: List[str]) -> int:
     if sub in ("version", "--version", "-v"):
         print(f"A-term {_VERSION}")
         return 0
+
+    if sub == "plugin":
+        return _run_plugin(args[1:])
 
     if sub in ("help", "--help", "-h"):
         print(_HELP)

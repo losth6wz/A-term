@@ -32,7 +32,7 @@
   <Fragment>
     <DirectoryRef Id="INSTALLFOLDER">
       <Component Id="MainExecutable" Guid="7B7AFA54-0A51-4D9D-98FE-8E0CA283EA20">
-        <File Id="AtermExe" Source="$(var.ExeSource)" KeyPath="yes" />
+        <File Id="AtermExe"  Source="$(var.ExeSource)"  KeyPath="yes" />
         <File Id="AtermConf" Source="$(var.ConfSource)" />
       </Component>
     </DirectoryRef>
